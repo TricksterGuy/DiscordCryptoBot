@@ -5,10 +5,10 @@ Still a work in progress but if you wish to try it out, set up a Discord Bot and
 
 Required packages
 ---
-py-cord
-Pillow
-markdownify
-pyyaml
+* py-cord
+* Pillow
+* markdownify
+* pyyaml
 
 Rename template.yaml to cryptobot-config.yaml and copy the token to this config.
 Delete channels/logging/channel and channels/new_crypto/channel if you wish to disable loogging and new crypto reporting. Otherwise set these fields to channel ids where respective messages get posted.
