@@ -1,11 +1,13 @@
 import aiohttp
 import collections
+import random
 
 API_URL_BASE = 'https://api.coingecko.com/api/v3/'
 
 CoinInfo = collections.namedtuple('CoinInfo', 'id symbol name')
 
 class CoinGeckoAPI:
+    """Simple wrapper over Coingecko's API in using async."""
 
     def __init__(self, api_base_url=API_URL_BASE):
         self.api_base_url = api_base_url
@@ -14,8 +16,14 @@ class CoinGeckoAPI:
         self.coins = dict()
         # str (symbol) -> set[coin_id]
         self.symbol_map = collections.defaultdict(set)
-        # str (symbo) -> coin_id
+        # str (symbol) -> coin_id
         self.preferred_ids = dict()
+
+    def get_symbols(self):
+        return list(self.symbol_map.keys())
+
+    def get_ids(self):
+        return list(self.coins.keys())
 
     async def __request(self, url, params=None):
         if not params:
@@ -25,13 +33,15 @@ class CoinGeckoAPI:
             if r.status == 200:
                 return await r.json()
 
+        return None
+
     async def ping(self):
         api_url = '{0}ping'.format(self.api_base_url)
         return await self.__request(api_url)
 
     async def prices(self, ids, **kwargs):
         api_url = '{0}simple/price'.format(self.api_base_url)
-        kwargs['ids'] = ','.join(ids)
+        kwargs['ids'] = ','.join([id.lower() for id in ids])
         kwargs['vs_currencies'] = 'usd'
         prices = await self.__request(api_url, params=kwargs)
         return {id: value['usd'] for id, value in prices.items()}
@@ -46,7 +56,7 @@ class CoinGeckoAPI:
         return await self.__request(api_url, params=kwargs)
 
     async def coin_by_id(self, id, **kwargs):
-        api_url = '{0}coins/{1}/'.format(self.api_base_url, id)
+        api_url = '{0}coins/{1}/'.format(self.api_base_url, id.lower())
         return await self.__request(api_url, params=kwargs)
 
     # Derived functions
@@ -60,8 +70,10 @@ class CoinGeckoAPI:
             symbol = info_map['symbol'].upper()
             name = info_map.get('name')
 
-            new_coins_by_id[id] = CoinInfo(id=id, symbol=symbol, name=name)
-            self.symbol_map[symbol].add(id)
+            if id:
+                new_coins_by_id[id] = CoinInfo(id=id, symbol=symbol, name=name)
+            if symbol:
+                self.symbol_map[symbol].add(id)
 
         if self.coins:
             new_coins = set(new_coins_by_id.keys()) - set(self.coins.keys())
@@ -70,6 +82,10 @@ class CoinGeckoAPI:
 
         return new_coins
 
+    async def random_coin(self):
+        id = random.choice(list(self.coins.keys()))
+        return await self.coin_by_id(id)
+
     def lookup(self, symbol, preferred=False):
         if symbol in self.preferred_ids:
             return self.preferred_ids.get(symbol)
@@ -77,4 +93,4 @@ class CoinGeckoAPI:
         return self.symbol_map.get(symbol, set())
 
     def set_preferred(self, symbol, id):
-        self.preferred_ids[symbol] = id
+        self.preferred_ids[symbol] = id.lower()

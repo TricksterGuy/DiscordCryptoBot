@@ -1,0 +1,22 @@
+# Discord bot token to use.
+token: "discord-bot-token"
+
+# Database configuration for persistent data.
+db:
+  host: "host"
+  username: "user"
+  password: "pass"
+  name: "name"
+  port: port
+
+# Reporting channels.
+channels:
+  # Error messages are logged to this channel.
+  logging:
+    channel: idhere
+  # Optional. New crypto the bot finds are sent here.
+  new_crypto:
+    channel: idhere
+    # This is also the new crypto fetch period from Coingecko.
+    interval:
+      minutes: 15
