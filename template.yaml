@@ -2,6 +2,7 @@
 token: "discord-bot-token"
 
 # Database configuration for persistent data.
+# Unused currently.
 db:
   host: "host"
   username: "user"
@@ -11,11 +12,11 @@ db:
 
 # Reporting channels.
 channels:
-  # Error messages are logged to this channel.
   logging:
+    # Error messages are logged to this channel. If ommitted should send to owner.
     channel: idhere
-  # Optional. New crypto the bot finds are sent here.
   new_crypto:
+    # Optional. New crypto the bot finds are sent here. if not using delete this line.
     channel: idhere
     # This is also the new crypto fetch period from Coingecko.
     interval:
