@@ -59,6 +59,11 @@ class CoinGeckoAPI:
         api_url = '{0}coins/{1}/'.format(self.api_base_url, id.lower())
         return await self.__request(api_url, params=kwargs)
 
+    async def coin_price_history(self, id, **kwargs):
+        api_url = '{0}coins/{1}/market_chart/range'.format(self.api_base_url, id.lower())
+        kwargs['vs_currency'] = 'usd'
+        return await self.__request(api_url, params=kwargs)
+
     # Derived functions
     async def new_coins(self):
         new_coins_by_id = dict()
@@ -91,6 +96,9 @@ class CoinGeckoAPI:
             return self.preferred_ids.get(symbol)
 
         return self.symbol_map.get(symbol, set())
+    
+    def get_coin_info(self, id):
+        return self.coins.get(id)
 
     def set_preferred(self, symbol, id):
         self.preferred_ids[symbol] = id.lower()

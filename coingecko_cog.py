@@ -1,10 +1,14 @@
 import asyncio
 import discord
 import datetime
+import dateparser
 import io
 import logging
 import random
+import time
 import uuid
+
+import matplotlib.pyplot as plt
 
 from discord.ext import commands, tasks
 from discord.commands import Option, slash_command
@@ -170,6 +174,14 @@ def format_crypto_price_info(info_map):
     return embed
 
 
+def fig2buf(fig):
+    """Convert a Matplotlib figure to a buffer and return it"""
+    buf = io.BytesIO()
+    fig.savefig(buf, format='png')
+    buf.seek(0)
+    return buf
+
+
 class CoinGeckoCog(commands.Cog):
     def __init__(self, client, cg, new_crypto_config=None):
         self.client = client
@@ -253,6 +265,66 @@ class CoinGeckoCog(commands.Cog):
         embed.set_footer(text=warning)
         await ctx.respond(embed=embed)
 
+    @slash_command(name='history')
+    async def price_history(
+        self,
+        ctx,
+        id: Option(str, 'Coingecko id or Symbol', autocomplete=symbol_id_searcher),
+        is_id: Option(bool, 'True if Coingecko id', required=False, default=False),
+        start: Option(str, 'Start time', required=False, default='1 year ago'),
+        end: Option(str, 'End time', required=False, default=None),
+    ):
+        """Gets price history for a cryptocurrency."""
+        crypto = id
+
+        if not is_id:
+            crypto = self.cg.lookup(id, preferred=True)
+
+        if not crypto:
+            await ctx.respond(f'Hi {ctx.author.mention}\n'
+                           f'Unfortunately Coin/Token {id} doesn\'t appear to exist.')
+            return
+
+        warning = ''
+        if isinstance(crypto, set):
+            if len(crypto) > 1:
+                id_str = '{%s}' % (', '.join(crypto))
+                crypto = random.choice(list(crypto))
+                warning = f'Warning multiple tokens map to this symbol.\nPicked {crypto} from {id_str}'
+            else:
+                crypto = next(iter(crypto))
+
+        from_time = dateparser.parse(start)
+        end_time = dateparser.parse(end) if end else datetime.datetime.now()
+        
+        kwargs = dict()
+        kwargs['from'] = int(time.mktime(from_time.timetuple()))
+        kwargs['to'] = int(time.mktime(end_time.timetuple()))
+        price_data = await self.cg.coin_price_history(crypto, **kwargs)
+        
+        history = [price for _, price in price_data['prices']]
+        times = [datetime.datetime.fromtimestamp(ts / 1000) for ts, _ in price_data['prices']]
+
+        fig1, ax1 = plt.subplots()
+        
+        ax1.plot(times, history, label=crypto)
+        ax1.legend(bbox_to_anchor=(1.04, 1), loc="upper left")
+        fig1.tight_layout()
+        fig1.autofmt_xdate()
+        
+        buf = fig2buf(fig1)
+        plt.close(fig1)
+        
+        coin_info = self.cg.get_coin_info(crypto)
+
+        embed = discord.Embed(
+            title='{0} price history from {1} to {2}'.format(coin_info.name, from_time.strftime('%Y-%m-%d %H:%M:%S'), end_time.strftime('%Y-%m-%d %H:%M:%S'))
+        )
+        embed.set_image(url="attachment://history.png")
+        embed.set_footer(text=warning)
+        await ctx.respond(file=discord.File(buf, 'history.png'), embed=embed)
+
+
     @slash_command()
     async def random(self, ctx):
         """Gets information about a random cryptocurrency."""
@@ -310,6 +382,7 @@ class CoinGeckoCog(commands.Cog):
         try:
             logger.info('Updating crypto from coingecko')
             await self.do_update_cryptocurrencies()
+            logger.info('Received latest coin update from coingecko')
         except Exception as e:
             logger.exception(e)
 
