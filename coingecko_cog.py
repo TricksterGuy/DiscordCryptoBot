@@ -106,7 +106,7 @@ def format_crypto_info(info_map):
         description=description,
         url=f'https://www.coingecko.com/en/coins/{id}')
 
-    if thumbnail:
+    if thumbnail and thumbnail != 'missing_small.png':
         embed.set_thumbnail(url=thumbnail)
 
     love = info_map.get('sentiment_votes_up_percentage')
